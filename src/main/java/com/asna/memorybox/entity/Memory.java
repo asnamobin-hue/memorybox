@@ -1,5 +1,6 @@
 package com.asna.memorybox.entity;
-
+import org.hibernate.annotations.CreationTimestamp;
+import org.hibernate.annotations.UpdateTimestamp;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -20,7 +21,21 @@ public class Memory {
     @Column(columnDefinition = "TEXT")
     private String aiCaption;
 
+    @CreationTimestamp
     private LocalDateTime createdAt;
+
+    @PrePersist
+    protected void onCreate() {
+    createdAt = LocalDateTime.now();
+    updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
+
+    @UpdateTimestamp
     private LocalDateTime updatedAt;
 
     public Memory() {
