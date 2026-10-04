@@ -1,6 +1,10 @@
 package com.asna.memorybox.entity;
+
 import org.hibernate.annotations.CreationTimestamp;
 import org.hibernate.annotations.UpdateTimestamp;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
@@ -21,19 +25,18 @@ public class Memory {
     @Column(columnDefinition = "TEXT")
     private String aiCaption;
 
+    @Column(columnDefinition = "TEXT")
+    private String remark;
+
+    @Column(nullable = false)
+    private boolean favorite = false;
+
+    @JdbcTypeCode(SqlTypes.VECTOR)
+    @Column(columnDefinition = "vector(1024)")
+    private float[] embedding;
+
     @CreationTimestamp
     private LocalDateTime createdAt;
-
-    @PrePersist
-    protected void onCreate() {
-    createdAt = LocalDateTime.now();
-    updatedAt = LocalDateTime.now();
-    }
-
-    @PreUpdate
-    protected void onUpdate() {
-        updatedAt = LocalDateTime.now();
-    }
 
     @UpdateTimestamp
     private LocalDateTime updatedAt;
@@ -41,7 +44,6 @@ public class Memory {
     public Memory() {
     }
 
-    // Getters and setters
     public Long getId() {
         return id;
     }
@@ -68,6 +70,30 @@ public class Memory {
 
     public void setAiCaption(String aiCaption) {
         this.aiCaption = aiCaption;
+    }
+
+    public String getRemark() {
+        return remark;
+    }
+
+    public void setRemark(String remark) {
+        this.remark = remark;
+    }
+
+    public boolean isFavorite() {
+        return favorite;
+    }
+
+    public void setFavorite(boolean favorite) {
+        this.favorite = favorite;
+    }
+
+    public float[] getEmbedding() {
+        return embedding;
+    }
+
+    public void setEmbedding(float[] embedding) {
+        this.embedding = embedding;
     }
 
     public LocalDateTime getCreatedAt() {

@@ -31,4 +31,15 @@ build/
 
 ### VS Code ###
 .vscode/
+
+### Local environment ###
+.env.local
+.venv/
+
+### Runtime files ###
+*.log
 uploads/
+
+### Frontend ###
+frontend/node_modules/
+frontend/dist/
