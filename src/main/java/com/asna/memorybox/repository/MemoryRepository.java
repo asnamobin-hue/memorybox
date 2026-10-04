@@ -17,4 +17,33 @@ public interface MemoryRepository extends JpaRepository<Memory, Long> {
         ORDER BY cosine_distance(m.embedding, :embedding)
         """)
     List<Memory> searchSimilar(float[] embedding, Pageable pageable);
+
+    @Query(value = """
+        SELECT
+            m.id,
+            ts_rank(
+                to_tsvector(
+                    'simple',
+                    concat_ws(
+                        ' ',
+                        coalesce(m.user_description, ''),
+                        coalesce(m.ai_caption, ''),
+                        coalesce(m.remark, '')
+                    )
+                ),
+                plainto_tsquery('simple', :query)
+            ) AS keyword_score
+        FROM memories m
+        WHERE to_tsvector(
+            'simple',
+            concat_ws(
+                ' ',
+                coalesce(m.user_description, ''),
+                coalesce(m.ai_caption, ''),
+                coalesce(m.remark, '')
+            )
+        ) @@ plainto_tsquery('simple', :query)
+        ORDER BY keyword_score DESC
+        """, nativeQuery = true)
+    List<Object[]> searchKeywordScores(String query);
 }

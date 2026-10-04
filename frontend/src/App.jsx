@@ -8,6 +8,7 @@ function App() {
   const [memories, setMemories] = useState([])
   const [loading, setLoading] = useState(false)
   const [searched, setSearched] = useState(false)
+  const [searchError, setSearchError] = useState('')
   const [showAddMemory, setShowAddMemory] = useState(false)
   const [viewingMemory, setViewingMemory] = useState(null)
 
@@ -45,12 +46,19 @@ function App() {
   useEffect(() => {
     function handleKeyDown(event) {
       if (event.key === 'Escape') {
-        setViewingMemory(null)
+        if (viewingMemory) {
+          setViewingMemory(null)
+          return
+        }
+
+        if (searched) {
+          clearSearch()
+        }
       }
     }
 
-    if (viewingMemory) {
-      document.body.style.overflow = 'hidden'
+    if (viewingMemory || searched) {
+      document.body.style.overflow = viewingMemory ? 'hidden' : ''
       window.addEventListener('keydown', handleKeyDown)
     }
 
@@ -58,7 +66,7 @@ function App() {
       document.body.style.overflow = ''
       window.removeEventListener('keydown', handleKeyDown)
     }
-  }, [viewingMemory])
+  }, [viewingMemory, searched])
 
   function openMemoryViewer(memory) {
     setViewingMemory(memory)
@@ -210,6 +218,8 @@ function App() {
       ])
 
       setSearched(false)
+      setSearchError('')
+      setQuery('')
 
       removeSelectedPhoto()
       setUserDescription('')
@@ -427,13 +437,13 @@ function App() {
     const trimmedQuery = query.trim()
 
     if (!trimmedQuery) {
-      setMemories([])
-      setSearched(false)
+      clearSearch()
       return
     }
 
     setLoading(true)
     setSearched(true)
+    setSearchError('')
 
     try {
       const response = await fetch(
@@ -449,8 +459,39 @@ function App() {
     } catch (error) {
       console.error('Memory search failed:', error)
       setMemories([])
+      setSearchError(
+        'MemoryBox could not search right now. Please make sure the backend is running.'
+      )
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function clearSearch() {
+    if (loading) {
+      return
+    }
+
+    setLoading(false)
+    setSearched(false)
+    setSearchError('')
+    setQuery('')
+
+    try {
+      const response = await fetch(`${API_URL}/api/memories`)
+
+      if (!response.ok) {
+        throw new Error('Failed to reload memories')
+      }
+
+      const data = await response.json()
+      setMemories(data)
+    } catch (error) {
+      console.error('Failed to reload memories:', error)
+      setMemories([])
+      setSearchError(
+        'Could not reload your memories. Please make sure the backend is running.'
+      )
     }
   }
 
@@ -498,7 +539,11 @@ function App() {
               aria-label="Search your memories"
             />
 
-            <button type="submit" className="search-button">
+            <button
+              type="submit"
+              className="search-button"
+              disabled={loading}
+            >
               {loading ? 'Searching...' : 'Search'}
             </button>
           </form>
@@ -513,13 +558,42 @@ function App() {
         <div className="collection-heading">
           <div>
             <p className="eyebrow">YOUR COLLECTION</p>
-            <h2>{searched ? 'Moments you remembered' : 'Your memories'}</h2>
+
+            <h2>
+              {searched
+                ? 'Moments you remembered'
+                : 'Your memories'}
+            </h2>
+
+            {searched && !loading && !searchError && (
+              <div className="search-summary">
+                <span>
+                  {memories.length === 1
+                    ? '1 moment found'
+                    : `${memories.length} moments found`}
+                </span>
+
+                <span className="search-summary-query">
+                  for “{query.trim()}”
+                </span>
+              </div>
+            )}
           </div>
 
           {!searched && (
             <p className="collection-note">
               Search naturally. MemoryBox will do the remembering.
             </p>
+          )}
+
+          {searched && !loading && (
+            <button
+              className="clear-search-button"
+              type="button"
+              onClick={clearSearch}
+            >
+              Clear search
+            </button>
           )}
         </div>
 
@@ -529,24 +603,54 @@ function App() {
           </p>
         )}
 
+        {searchError && (
+          <div className="state-card error-state">
+            <div className="state-symbol">!</div>
+            <h3>We couldn't look through your memories.</h3>
+            <p>{searchError}</p>
+
+            <button
+              className="state-action-button"
+              type="button"
+              onClick={clearSearch}
+            >
+              Back to collection
+            </button>
+          </div>
+        )}
+
         {loading && (
           <div className="state-card">
             <div className="state-symbol">✦</div>
             <h3>Looking through your memories...</h3>
-            <p>Finding the moments that feel like your search.</p>
-          </div>
-        )}
-
-        {!loading && searched && memories.length === 0 && (
-          <div className="state-card">
-            <div className="state-symbol">⌕</div>
-            <h3>Nothing surfaced this time.</h3>
             <p>
-              Try describing the moment differently. Think about what was
-              happening, where you were, or how the photo felt.
+              Finding the moments that feel like your search.
             </p>
           </div>
         )}
+
+        {!loading &&
+          !searchError &&
+          searched &&
+          memories.length === 0 && (
+            <div className="state-card">
+              <div className="state-symbol">⌕</div>
+              <h3>Nothing surfaced this time.</h3>
+              <p>
+                Try describing the moment differently. Think about
+                what was happening, where you were, or how the photo
+                felt.
+              </p>
+
+              <button
+                className="state-action-button"
+                type="button"
+                onClick={clearSearch}
+              >
+                See all memories
+              </button>
+            </div>
+          )}
 
         {!loading && memories.length > 0 && (
           <div className="memory-grid">
@@ -613,18 +717,19 @@ function App() {
                     </span>
 
                     <span className="memory-date">
-                      {new Date(memory.createdAt).toLocaleDateString(
-                        undefined,
-                        {
-                          day: 'numeric',
-                          month: 'short',
-                          year: 'numeric',
-                        }
-                      )}
+                      {new Date(
+                        memory.createdAt
+                      ).toLocaleDateString(undefined, {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                      })}
                     </span>
                   </div>
 
-                  <h3>{memory.userDescription || 'A little moment'}</h3>
+                  <h3>
+                    {memory.userDescription || 'A little moment'}
+                  </h3>
 
                   <p>
                     {memory.aiCaption ||
@@ -647,7 +752,9 @@ function App() {
                         toggleFavorite(memory)
                       }}
                     >
-                      {memory.favorite ? '♥ Favorited' : '♡ Favorite'}
+                      {memory.favorite
+                        ? '♥ Favorited'
+                        : '♡ Favorite'}
                     </button>
 
                     <button
@@ -658,7 +765,9 @@ function App() {
                         openRemarkEditor(memory)
                       }}
                     >
-                      ✎ {memory.remark ? 'Edit remark' : 'Add remark'}
+                      ✎ {memory.remark
+                        ? 'Edit remark'
+                        : 'Add remark'}
                     </button>
 
                     <button
@@ -687,8 +796,8 @@ function App() {
               <div>
                 <h3>Start with a memory.</h3>
                 <p>
-                  Add a photo, tell us a little about it, and let MemoryBox
-                  quietly understand the rest.
+                  Add a photo, tell us a little about it, and let
+                  MemoryBox quietly understand the rest.
                 </p>
               </div>
             </div>
@@ -751,7 +860,9 @@ function App() {
               >
                 <span className="upload-symbol">+</span>
                 <strong>Choose a photo</strong>
-                <span>JPG, PNG or WEBP · up to 10 MB</span>
+                <span>
+                  JPG, PNG or WEBP · up to 10 MB
+                </span>
               </button>
             ) : (
               <div className="photo-preview">
@@ -823,7 +934,9 @@ function App() {
               onClick={saveMemory}
               disabled={savingMemory}
             >
-              {savingMemory ? 'Saving your memory...' : 'Save memory'}
+              {savingMemory
+                ? 'Saving your memory...'
+                : 'Save memory'}
             </button>
           </div>
         </div>
@@ -937,7 +1050,8 @@ function App() {
               </p>
 
               <h2>
-                {viewingMemory.userDescription || 'A little moment'}
+                {viewingMemory.userDescription ||
+                  'A little moment'}
               </h2>
 
               <p>
