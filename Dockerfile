@@ -16,7 +16,7 @@ RUN ./mvnw dependency:go-offline -DskipTests
 # Python embedding helper
 COPY embedding_helper.py ./
 
-RUN python3 -m pip install --break-system-packages huggingface_hub
+RUN python3 -m pip install --break-system-packages huggingface_hub numpy
 
 COPY src/ src/
 
