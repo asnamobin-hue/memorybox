@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import './App.css'
 
-const API_URL = 'http://localhost:8080'
+const API_URL = 'https://memorybox-o9np.onrender.com'
 
 const EXAMPLE_MEMORIES = [
   'our tennis day',
