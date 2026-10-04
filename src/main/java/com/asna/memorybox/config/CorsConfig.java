@@ -22,7 +22,8 @@ public class CorsConfig {
                                 "PATCH",
                                 "DELETE",
                                 "OPTIONS"
-                        );
+                        )
+                        .allowedHeaders("*");
             }
         };
     }
