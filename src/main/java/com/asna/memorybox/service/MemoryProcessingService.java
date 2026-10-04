@@ -41,6 +41,7 @@ public class MemoryProcessingService {
                     embeddingService.generateEmbedding(searchableText);
 
             memory.setEmbedding(embedding);
+            memory.setRemark(null);
 
             memoryRepository.save(memory);
 
@@ -49,8 +50,36 @@ public class MemoryProcessingService {
             );
 
         } catch (Exception e) {
+            try {
+                Memory memory = memoryRepository.findById(memoryId)
+                        .orElse(null);
+
+                if (memory != null) {
+                    String message = e.getMessage();
+
+                    if (message == null || message.isBlank()) {
+                        message = e.getClass().getSimpleName();
+                    }
+
+                    memory.setRemark(
+                            "AI processing failed: "
+                                    + e.getClass().getSimpleName()
+                                    + " - "
+                                    + message
+                    );
+
+                    memoryRepository.save(memory);
+                }
+            } catch (Exception saveError) {
+                System.err.println(
+                        "Could not save AI error: " + saveError.getMessage()
+                );
+            }
+
             System.err.println(
                     "Memory " + memoryId + " AI processing failed: "
+                            + e.getClass().getSimpleName()
+                            + " - "
                             + e.getMessage()
             );
         }
