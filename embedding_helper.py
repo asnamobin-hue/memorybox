@@ -29,6 +29,11 @@ try:
     if hasattr(result, "tolist"):
         result = result.tolist()
 
+    # Hugging Face may return [[1024 values]]
+    # instead of [1024 values].
+    if len(result) == 1 and isinstance(result[0], list):
+        result = result[0]
+
     if len(result) != 1024:
         raise RuntimeError(
             f"Expected 1024-dimensional embedding, got {len(result)}"
