@@ -55,15 +55,21 @@ public class MemoryProcessingService {
                         .orElse(null);
 
                 if (memory != null) {
-                    String message = e.getMessage();
+                    Throwable root = e;
+
+                    while (root.getCause() != null) {
+                        root = root.getCause();
+                    }
+
+                    String message = root.getMessage();
 
                     if (message == null || message.isBlank()) {
-                        message = e.getClass().getSimpleName();
+                        message = root.getClass().getSimpleName();
                     }
 
                     memory.setRemark(
                             "AI processing failed: "
-                                    + e.getClass().getSimpleName()
+                                    + root.getClass().getSimpleName()
                                     + " - "
                                     + message
                     );

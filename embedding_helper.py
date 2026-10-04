@@ -1,19 +1,43 @@
-import os
 import json
+import os
 import sys
 
 from huggingface_hub import InferenceClient
 
-client = InferenceClient(
-    provider="deepinfra",
-    api_key=os.environ["HF_TOKEN"],
-)
+
+token = os.environ.get("HF_TOKEN")
+
+if not token:
+    raise RuntimeError("HF_TOKEN is missing")
+
+if len(sys.argv) < 2:
+    raise RuntimeError("Text to embed was not provided")
 
 text = sys.argv[1]
 
-result = client.feature_extraction(
-    text,
-    model="Qwen/Qwen3-Embedding-0.6B",
+client = InferenceClient(
+    provider="deepinfra",
+    api_key=token,
 )
 
-print(json.dumps(result[0].tolist()))
+try:
+    result = client.feature_extraction(
+        text,
+        model="Qwen/Qwen3-Embedding-0.6B",
+    )
+
+    if hasattr(result, "tolist"):
+        result = result.tolist()
+
+    if len(result) != 1024:
+        raise RuntimeError(
+            f"Expected 1024-dimensional embedding, got {len(result)}"
+        )
+
+    print(json.dumps(result))
+
+except Exception as e:
+    raise RuntimeError(
+        f"Hugging Face embedding request failed: "
+        f"{type(e).__name__}: {e}"
+    ) from e
