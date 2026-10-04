@@ -1,5 +1,6 @@
 package com.asna.memorybox.service;
 
+import net.coobird.thumbnailator.Thumbnails;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.json.JsonParser;
 import org.springframework.boot.json.JsonParserFactory;
@@ -8,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpServerErrorException;
 import org.springframework.web.client.RestClient;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -33,17 +35,9 @@ public class ImageUnderstandingService {
 
     public String generateCaption(String imagePath) {
         try {
-            byte[] imageBytes = Files.readAllBytes(Path.of(imagePath));
+            String base64Image = prepareImageForAi(imagePath);
 
-            String base64Image = Base64.getEncoder()
-                    .encodeToString(imageBytes);
-
-            String extension = getExtension(imagePath);
-
-            String imageDataUrl =
-                    "data:image/" + extension + ";base64," + base64Image;
-
-            String response = callModel(imageDataUrl);
+            String response = callModel(base64Image);
 
             Map<String, Object> json = jsonParser.parseMap(response);
 
@@ -54,12 +48,25 @@ public class ImageUnderstandingService {
         }
     }
 
-    private String callModel(String imageDataUrl) {
+    private String prepareImageForAi(String imagePath) throws IOException {
+        ByteArrayOutputStream output = new ByteArrayOutputStream();
+
+        Thumbnails.of(Path.of(imagePath).toFile())
+                .size(1280, 1280)
+                .outputFormat("jpg")
+                .outputQuality(0.75)
+                .toOutputStream(output);
+
+        return Base64.getEncoder()
+                .encodeToString(output.toByteArray());
+    }
+
+    private String callModel(String base64Image) {
         int maxAttempts = 4;
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                return sendRequest(imageDataUrl);
+                return sendRequest(base64Image);
 
             } catch (HttpServerErrorException.ServiceUnavailable e) {
                 if (attempt == maxAttempts) {
@@ -98,7 +105,10 @@ public class ImageUnderstandingService {
         );
     }
 
-    private String sendRequest(String imageDataUrl) {
+    private String sendRequest(String base64Image) {
+        String imageDataUrl =
+                "data:image/jpeg;base64," + base64Image;
+
         return restClient.post()
                 .uri("/chat/completions")
                 .header("Authorization", "Bearer " + hfToken)
@@ -134,21 +144,12 @@ public class ImageUnderstandingService {
         var choices =
                 (java.util.List<Map<String, Object>>) json.get("choices");
 
-        var firstChoice = choices.get(0);
+        var firstChoice =
+                choices.get(0);
 
         var message =
                 (Map<String, Object>) firstChoice.get("message");
 
         return (String) message.get("content");
-    }
-
-    private String getExtension(String imagePath) {
-        String extension = imagePath.substring(
-                imagePath.lastIndexOf('.') + 1
-        );
-
-        return extension.equalsIgnoreCase("jpg")
-                ? "jpeg"
-                : extension;
     }
 }

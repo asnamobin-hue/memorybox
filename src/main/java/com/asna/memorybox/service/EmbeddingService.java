@@ -17,7 +17,7 @@ public class EmbeddingService {
     public float[] generateEmbedding(String text) {
         try {
             Process process = new ProcessBuilder(
-                    ".venv/bin/python",
+                    "/usr/bin/python3",
                     "embedding_helper.py",
                     text
             )
